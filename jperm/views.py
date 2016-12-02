@@ -81,6 +81,7 @@ def perm_rule_detail(request):
     return my_render('jperm/perm_rule_detail.html', locals(), request)
 
 
+@require_role('admin')
 def perm_rule_add(request):
     """
     add rule page
@@ -333,7 +334,6 @@ def perm_role_delete(request):
                 raise ServerError(u"role_id %s 无数据记录" % role_id)
             # 删除推送到主机上的role
             filter_type = request.GET.get("filter_type")
-            print filter_type
             if filter_type:
                 if filter_type == "recycle_assets":
                     recycle_assets = [push.asset for push in role.perm_push.all() if push.success]
@@ -534,6 +534,8 @@ def perm_role_push(request):
             sudo_list = set([sudo for sudo in role.sudo.all()])  # set(sudo1, sudo2, sudo3)
             if sudo_list:
                 ret['sudo'] = task.push_sudo_file([role], sudo_list)
+            else:
+                ret['sudo'] = task.recyle_cmd_alias(role.name)
 
         logger.debug('推送role结果: %s' % ret)
         success_asset = {}
@@ -577,7 +579,7 @@ def perm_role_push(request):
         if not failed_asset:
             msg = u'系统用户 %s 推送成功[ %s ]' % (role.name, ','.join(success_asset.keys()))
         else:
-            error = u'系统用户 %s 推送失败 [ %s ], 推送成功 [ %s ] 进入系统用户详情，查看失败原因' % (role.name,
+            error = u'系统用户 %s 推送失败 [ %s ], 推送成功 [ %s ] 请点系统用户->点对应名称->点失败，查看失败原因' % (role.name,
                                                                 ','.join(failed_asset.keys()),
                                                                 ','.join(success_asset.keys()))
     return my_render('jperm/perm_role_push.html', locals(), request)

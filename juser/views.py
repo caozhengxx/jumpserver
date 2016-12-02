@@ -10,6 +10,7 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from juser.user_api import *
 from jperm.perm_api import get_group_user_perm
+import re
 
 MAIL_FROM = EMAIL_HOST_USER
 
@@ -142,7 +143,7 @@ def user_add(request):
     group_all = UserGroup.objects.all()
 
     if request.method == 'POST':
-        username = request.POST.get('username', '')
+        username = request.POST.get('username', '')      
         password = PyCrypt.gen_rand_pass(16)
         name = request.POST.get('name', '')
         email = request.POST.get('email', '')
@@ -159,15 +160,23 @@ def user_add(request):
             if '' in [username, password, ssh_key_pwd, name, role]:
                 error = u'带*内容不能为空'
                 raise ServerError
+                
             check_user_is_exist = User.objects.filter(username=username)
             if check_user_is_exist:
                 error = u'用户 %s 已存在' % username
+                raise ServerError
+            
+            if username in ['root']:
+                error = u'用户不能为root'
                 raise ServerError
 
         except ServerError:
             pass
         else:
             try:
+                if not re.match(r"^\w+$",username):
+                    error = u'用户名不合法'
+                    raise ServerError(error)
                 user = db_add_user(username=username, name=name,
                                    password=password,
                                    email=email, role=role, uuid=uuid_r,
@@ -323,7 +332,7 @@ def reset_password(request):
         else:
             user = get_object(User, uuid=uuid_r)
             if user:
-                user.password = PyCrypt.md5_crypt(password)
+                user.set_password(password)
                 user.save()
                 return http_success(request, u'密码重设成功')
             else:
